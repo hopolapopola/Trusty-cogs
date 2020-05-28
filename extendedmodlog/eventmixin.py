@@ -430,7 +430,7 @@ class EventMixin:
                         content=message.content
                     )
             
-                file = discord.File(fp, filename="messages.txt", *, spoiler=False)
+                file = discord.File(fp, filename="messages.txt", spoiler=False)
                 await channel.send(embed=embed, file=file)
             else:
                 await channel.send(embed=embed)
