@@ -409,6 +409,7 @@ class EventMixin:
         )
         time = datetime.datetime.utcnow()
         message_amount = len(payload.message_ids)
+
         if embed_links:
             embed = discord.Embed(
                 description=message_channel.mention,
@@ -418,7 +419,21 @@ class EventMixin:
             embed.set_author(name=_("Bulk message delete"), icon_url=guild.icon_url)
             embed.add_field(name=_("Channel"), value=message_channel.mention, inline=False)
             embed.add_field(name=_("Messages deleted"), value=str(message_amount), inline=False)
-            await channel.send(embed=embed)
+            
+            if settings["bulk_individual"]:
+                # Create a new file to store all cached message in.
+                file_cached_message_line = io.BytesIO(b"")
+                for message in payload.cached_messages:
+                    file_cached_message_line += _("[{username}#{discrim}]: {content}\n").format(
+                        username=message.author.name,
+                        discrim=message.author.discriminator,
+                        content=message.content
+                    )
+            
+                file = discord.File(fp, filename="messages.txt", *, spoiler=False)
+                await channel.send(embed=embed, file=file)
+            else:
+                await channel.send(embed=embed)
         else:
             infomessage = _(
                 "{emoji} `{time}` Bulk message delete in {channel}, {amount} messages deleted."
@@ -429,16 +444,6 @@ class EventMixin:
                 channel=message_channel.mention,
             )
             await channel.send(infomessage)
-        if settings["bulk_individual"]:
-            for message in payload.cached_messages:
-                new_payload = discord.RawMessageDeleteEvent(
-                    {"id": message.id, "channel_id": channel_id, "guild_id": guild_id}
-                )
-                new_payload.cached_message = message
-                try:
-                    await self.on_raw_message_delete_listener(new_payload, check_audit_log=False)
-                except Exception:
-                    pass
 
     async def invite_links_loop(self) -> None:
         """Check every 5 minutes for updates to the invite links"""
