@@ -1208,6 +1208,80 @@ class EventMixin:
         else:
             await channel.send(escape(msg, mass_mentions=True))
 
+    
+    @commands.Cog.listener()
+    async def on_user_update(self, before: discord.User, after: discord.User) -> None:
+        guilds = [guild for guild in self.bot.guilds if before in guild.members]
+        
+        time = datetime.datetime.utcnow()
+        embed = discord.Embed(
+            title=_("User updated"),
+            timestamp=time,
+            description=after.mention
+        )
+
+        embed.set_footer(text=_("User ID: ") + str(before.id))
+        emb_msg = _("{member}").format(member=before)
+        embed.set_author(name=emb_msg, icon_url=before.avatar_url)
+        member_updates = {"avatar": _("Avatar:"), "name": _("Username:"), "discriminator": _("Discriminator:")}
+        worth_sending = False
+        for attr, name in member_updates.items():
+            # Check setting for avatars here when implemented
+            # if attr == "nick" and not self.settings[guild.id]["user_change"]["nicknames"]:
+            #     continue
+            before_attr = getattr(before, attr)
+            after_attr = getattr(after, attr)
+            if before_attr != after_attr:
+                worth_sending = True
+                if attr == "name":
+                    embed.title=_("Username updated")
+                    embed.add_field(name=_("Before ") + name, value=str(before_attr)[:1024], inline=False)
+                    embed.add_field(name=_("After ") + name, value=str(after_attr)[:1024], inline=False)
+                if attr == "discriminator":
+                    embed.title=_("User discriminator updated")
+                    embed.add_field(name=_("Before ") + name, value=str(before_attr)[:1024], inline=False)
+                    embed.add_field(name=_("After ") + name, value=str(after_attr)[:1024], inline=False)
+                if attr == "avatar":
+                    embed.title=_("Avatar updated")
+                    embed.set_thumbnail(url=str(after.avatar_url))
+
+        if not worth_sending:
+            return
+        
+        try:
+            for guild in guilds:
+                should_send = True
+                if guild.id not in self.settings:
+                    should_send = False
+                if not self.settings[guild.id]["user_change"]["enabled"]:
+                    should_send = False
+                if not self.settings[guild.id]["user_change"]["bots"] and after.bot:
+                    should_send = False
+
+                if should_send:
+                    channel = await self.modlog_channel(guild, "user_change")
+
+                    embed_links = (
+                        channel.permissions_for(guild.me).embed_links
+                        and self.settings[guild.id]["user_change"]["embed"]
+                    )
+                    embed.colour=await self.get_event_colour(guild, "user_change")
+                    
+                    msg = _("{emoji} `{time}` User updated **{user}** (`{m_id}`)\n").format(
+                        time=time.strftime("%H:%M:%S"),
+                        user=after,
+                        m_id=before.id,
+                        emoji=self.settings[guild.id]["user_change"]["emoji"]
+                    )
+
+                    if channel is not None:
+                        if embed_links:
+                            await channel.send(embed=embed)
+                        else:
+                            await channel.send(msg)                        
+        except RuntimeError:
+            return
+
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
         guild = before.guild
@@ -1716,6 +1790,114 @@ class EventMixin:
             await channel.send(embed=embed)
         else:
             await channel.send(msg)
+
+    @commands.Cog.listener()
+    async def on_member_unban(self, guild: discord.Guild, user: discord.User) -> None:
+        if guild.id not in self.settings:
+            return
+        if not self.settings[guild.id]["user_change"]["enabled"]:
+            return
+        if not self.settings[guild.id]["user_change"]["bots"] and user.bot:
+            return
+        try:
+            channel = await self.modlog_channel(guild, "user_change")
+        except RuntimeError:
+            return
+        embed_links = (
+            channel.permissions_for(guild.me).embed_links
+            and self.settings[guild.id]["user_change"]["embed"]
+        )
+        time = datetime.datetime.utcnow()
+        embed = discord.Embed(
+            title=_("Member unbanned"),
+            timestamp=time,
+            colour=await self.get_event_colour(guild, "user_change")
+        )
+        msg = _("{emoji} `{time}` Member unbanned **{user}** (`{m_id}`)\n").format(
+            emoji=self.settings[guild.id]["user_change"]["emoji"],
+            time=time.strftime("%H:%M:%S"),
+            user=user,
+            m_id=user.id,
+        )
+        embed.set_footer(text=_("User ID: ") + str(user.id))
+        emb_msg = _("{user}").format(user=user)
+        embed.set_author(name=emb_msg, icon_url=user.avatar_url)
+        embed.description = user.mention
+        perp = None
+        reason = None
+        if channel.permissions_for(guild.me).view_audit_log:
+            action = discord.AuditLogAction.unban
+            async for log in guild.audit_logs(limit=5, action=action):
+                if log.target.id == user.id:
+                    perp = log.user
+                    if log.reason:
+                        reason = log.reason
+                    break
+        if perp:
+            msg += _("Unbanned by ") + f"{perp}\n"
+            embed.add_field(name=_("Unbanned by "), value=perp.mention, inline=False)
+        if reason:
+            msg += _("Reason: ") + f"{reason}\n"
+            embed.add_field(name=_("Reason"), value=reason, inline=False)
+        if embed_links:
+            await channel.send(embed=embed)
+        else:
+            await channel.send(msg)
+
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, user: discord.User) -> None:
+        if guild.id not in self.settings:
+            return
+        if not self.settings[guild.id]["user_change"]["enabled"]:
+            return
+        if not self.settings[guild.id]["user_change"]["bots"] and user.bot:
+            return
+        try:
+            channel = await self.modlog_channel(guild, "user_change")
+        except RuntimeError:
+            return
+        embed_links = (
+            channel.permissions_for(guild.me).embed_links
+            and self.settings[guild.id]["user_change"]["embed"]
+        )
+        time = datetime.datetime.utcnow()
+        embed = discord.Embed(
+            title=_("Member banned"),
+            timestamp=time,
+            colour=await self.get_event_colour(guild, "user_change")
+        )
+        msg = _("{emoji} `{time}` Member banned **{user}** (`{m_id}`)\n").format(
+            emoji=self.settings[guild.id]["user_change"]["emoji"],
+            time=time.strftime("%H:%M:%S"),
+            user=user,
+            m_id=user.id,
+        )
+        embed.set_footer(text=_("User ID: ") + str(user.id))
+        emb_msg = _("{user}").format(user=user)
+        embed.set_author(name=emb_msg, icon_url=user.avatar_url)
+        embed.description = user.mention
+        perp = None
+        reason = None
+        if channel.permissions_for(guild.me).view_audit_log:
+            action = discord.AuditLogAction.unban
+            async for log in guild.audit_logs(limit=5, action=action):
+                if log.target.id == user.id:
+                    perp = log.user
+                    if log.reason:
+                        reason = log.reason
+                    break
+        if perp:
+            msg += _("Banned by ") + f"{perp}\n"
+            embed.add_field(name=_("Banned by "), value=perp.mention, inline=False)
+        if reason:
+            msg += _("Reason: ") + f"{reason}\n"
+            embed.add_field(name=_("Reason"), value=reason, inline=False)
+        if embed_links:
+            await channel.send(embed=embed)
+        else:
+            await channel.send(msg)
+
 
     @commands.Cog.listener()
     async def on_invite_create(self, invite: discord.Invite) -> None:
