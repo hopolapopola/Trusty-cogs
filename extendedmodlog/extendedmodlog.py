@@ -79,6 +79,7 @@ class ExtendedModLog(EventMixin, commands.Cog):
             "voice_change": _("Voice changes"),
             "user_join": _("User join"),
             "user_left": _("User left"),
+            "account_change": _("Account changes"),
             "channel_change": _("Channel changes"),
             "channel_create": _("Channel created"),
             "channel_delete": _("Channel deleted"),
@@ -86,7 +87,9 @@ class ExtendedModLog(EventMixin, commands.Cog):
             "emoji_change": _("Emoji changes"),
             "commands_used": _("Mod/Admin Commands"),
             "invite_created": _("Invite created"),
-            "invite_deleted": _("Invite deleted")
+            "invite_deleted": _("Invite deleted"),
+            "member_ban": _("Member banned"),
+            "member_unban": _("Member unbanned")
         }
         msg = _("Setting for {guild}\n Modlog Channel {channel}\n\n").format(
             guild=guild.name, channel=modlog_channel
@@ -163,12 +166,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 `voice_change`
                 `user_join`
                 `user_left`
+                `account_change`
                 `channel_change`
                 `channel_create`
                 `channel_delete`
                 `guild_change`
                 `emoji_change`
                 `commands_used`
+                `member_ban`
+                `member_unban`
 
                 **Requires Red 3.3 and discord.py 1.3**
                 `invite_created`
@@ -210,12 +216,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 `voice_change`
                 `user_join`
                 `user_left`
+                `account_change`
                 `channel_change`
                 `channel_create`
                 `channel_delete`
                 `guild_change`
                 `emoji_change`
                 `commands_used`
+                `member_ban`
+                `member_unban`
 
                 **Requires Red 3.3 and discord.py 1.3**
                 `invite_created`
@@ -256,12 +265,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 `voice_change`
                 `user_join`
                 `user_left`
+                `account_change`
                 `channel_change`
                 `channel_create`
                 `channel_delete`
                 `guild_change`
                 `emoji_change`
                 `commands_used`
+                `member_ban`
+                `member_unban`
 
                 **Requires Red 3.3 and discord.py 1.3**
                 `invite_created`
@@ -307,12 +319,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 `voice_change`
                 `user_join`
                 `user_left`
+                `account_change`
                 `channel_change`
                 `channel_create`
                 `channel_delete`
                 `guild_change`
                 `emoji_change`
                 `commands_used`
+                `member_ban`
+                `member_unban`
 
                 **Requires Red 3.3 and discord.py 1.3**
                 `invite_created`
@@ -352,12 +367,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 `voice_change`
                 `user_join`
                 `user_left`
+                `account_change`
                 `channel_change`
                 `channel_create`
                 `channel_delete`
                 `guild_change`
                 `emoji_change`
                 `commands_used`
+                `member_ban`
+                `member_unban`
 
                 **Requires Red 3.3 and discord.py 1.3**
                 `invite_created`
@@ -395,12 +413,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 `voice_change`
                 `user_join`
                 `user_left`
+                `account_change`
                 `channel_change`
                 `channel_create`
                 `channel_delete`
                 `guild_change`
                 `emoji_change`
                 `commands_used`
+                `member_ban`
+                `member_unban`
 
                 **Requires Red 3.3 and discord.py 1.3**
                 `invite_created`

@@ -60,6 +60,9 @@ class EventChooser(Converter):
             "commands_used",
             "invite_created",
             "invite_deleted",
+            "account_change",
+            "member_ban",
+            "member_unban"
         ]
         result = None
         if argument.lower() in options:
@@ -114,6 +117,9 @@ class EventMixin:
             "commands_used": cmd_colour,
             "invite_created": discord.Colour.blurple(),
             "invite_deleted": discord.Colour.blurple(),
+            "account_change": discord.Colour.dark_purple(),
+            "member_ban": discord.Colour.dark_purple(),
+            "member_unban": discord.Colour.dark_purple()
         }
         colour = defaults[event_type]
         if self.settings[guild.id][event_type]["colour"] is not None:
@@ -1253,25 +1259,25 @@ class EventMixin:
                 should_send = True
                 if guild.id not in self.settings:
                     should_send = False
-                if not self.settings[guild.id]["user_change"]["enabled"]:
+                if not self.settings[guild.id]["account_change"]["enabled"]:
                     should_send = False
-                if not self.settings[guild.id]["user_change"]["bots"] and after.bot:
+                if not self.settings[guild.id]["account_change"]["bots"] and after.bot:
                     should_send = False
 
                 if should_send:
-                    channel = await self.modlog_channel(guild, "user_change")
+                    channel = await self.modlog_channel(guild, "account_change")
 
                     embed_links = (
                         channel.permissions_for(guild.me).embed_links
-                        and self.settings[guild.id]["user_change"]["embed"]
+                        and self.settings[guild.id]["account_change"]["embed"]
                     )
-                    embed.colour=await self.get_event_colour(guild, "user_change")
+                    embed.colour=await self.get_event_colour(guild, "account_change")
                     
                     msg = _("{emoji} `{time}` User updated **{user}** (`{m_id}`)\n").format(
                         time=time.strftime("%H:%M:%S"),
                         user=after,
                         m_id=before.id,
-                        emoji=self.settings[guild.id]["user_change"]["emoji"]
+                        emoji=self.settings[guild.id]["account_change"]["emoji"]
                     )
 
                     if channel is not None:
@@ -1795,26 +1801,26 @@ class EventMixin:
     async def on_member_unban(self, guild: discord.Guild, user: discord.User) -> None:
         if guild.id not in self.settings:
             return
-        if not self.settings[guild.id]["user_change"]["enabled"]:
+        if not self.settings[guild.id]["member_unban"]["enabled"]:
             return
-        if not self.settings[guild.id]["user_change"]["bots"] and user.bot:
+        if not self.settings[guild.id]["member_unban"]["bots"] and user.bot:
             return
         try:
-            channel = await self.modlog_channel(guild, "user_change")
+            channel = await self.modlog_channel(guild, "member_unban")
         except RuntimeError:
             return
         embed_links = (
             channel.permissions_for(guild.me).embed_links
-            and self.settings[guild.id]["user_change"]["embed"]
+            and self.settings[guild.id]["member_unban"]["embed"]
         )
         time = datetime.datetime.utcnow()
         embed = discord.Embed(
             title=_("Member unbanned"),
             timestamp=time,
-            colour=await self.get_event_colour(guild, "user_change")
+            colour=await self.get_event_colour(guild, "member_unban")
         )
         msg = _("{emoji} `{time}` Member unbanned **{user}** (`{m_id}`)\n").format(
-            emoji=self.settings[guild.id]["user_change"]["emoji"],
+            emoji=self.settings[guild.id]["member_unban"]["emoji"],
             time=time.strftime("%H:%M:%S"),
             user=user,
             m_id=user.id,
@@ -1849,26 +1855,26 @@ class EventMixin:
     async def on_member_ban(self, guild: discord.Guild, user: discord.User) -> None:
         if guild.id not in self.settings:
             return
-        if not self.settings[guild.id]["user_change"]["enabled"]:
+        if not self.settings[guild.id]["member_ban"]["enabled"]:
             return
-        if not self.settings[guild.id]["user_change"]["bots"] and user.bot:
+        if not self.settings[guild.id]["member_ban"]["bots"] and user.bot:
             return
         try:
-            channel = await self.modlog_channel(guild, "user_change")
+            channel = await self.modlog_channel(guild, "member_ban")
         except RuntimeError:
             return
         embed_links = (
             channel.permissions_for(guild.me).embed_links
-            and self.settings[guild.id]["user_change"]["embed"]
+            and self.settings[guild.id]["member_ban"]["embed"]
         )
         time = datetime.datetime.utcnow()
         embed = discord.Embed(
             title=_("Member banned"),
             timestamp=time,
-            colour=await self.get_event_colour(guild, "user_change")
+            colour=await self.get_event_colour(guild, "member_ban")
         )
         msg = _("{emoji} `{time}` Member banned **{user}** (`{m_id}`)\n").format(
-            emoji=self.settings[guild.id]["user_change"]["emoji"],
+            emoji=self.settings[guild.id]["member_ban"]["emoji"],
             time=time.strftime("%H:%M:%S"),
             user=user,
             m_id=user.id,
