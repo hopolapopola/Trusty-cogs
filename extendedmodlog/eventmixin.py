@@ -2,6 +2,7 @@ import datetime
 import discord
 import asyncio
 import logging
+import io
 
 from discord.ext.commands.converter import Converter
 from discord.ext.commands.errors import BadArgument
@@ -427,17 +428,23 @@ class EventMixin:
             embed.add_field(name=_("Messages deleted"), value=str(message_amount), inline=False)
             
             if settings["bulk_individual"]:
-                # Create a new file to store all cached message in.
-                file_cached_message_line = io.BytesIO(b"")
+                messages = ""
+
                 for message in payload.cached_messages:
-                    file_cached_message_line += _("[{username}#{discrim}]: {content}\n").format(
+                    messages += _("[{username}#{discrim}]: {content}\n").format(
                         username=message.author.name,
                         discrim=message.author.discriminator,
                         content=message.content
                     )
-            
-                file = discord.File(fp, filename="messages.txt", spoiler=False)
-                await channel.send(embed=embed, file=file)
+
+                with io.StringIO(messages) as f:
+                    file = discord.File(f, filename="messages.txt", spoiler=False)
+                    try:
+                        await channel.send(embed=embed, file=file)
+                    except Exception:
+                        await channel.send(embed=embed)
+
+                    f.close()
             else:
                 await channel.send(embed=embed)
         else:
