@@ -490,7 +490,7 @@ class EventMixin:
                 }
             except Exception:
                 pass
-        await self.config.guild(guild).invite_links.set(invites)
+        self.settings[guild.id]["invite_links"] = invites
         return True
 
     async def get_invite_link(self, guild: discord.Guild) -> str:
@@ -505,7 +505,7 @@ class EventMixin:
             guild_invites = await guild.invites()
             for invite in guild_invites:
                 if invite.code in invites:
-                    uses = invites[invite.code]["uses"]
+                    uses = self.settings[guild.id]["invite_links"][invite.code]["uses"]
                     # logger.info(f"{invite.code}: {invite.uses} - {uses}")
                     if invite.uses > uses:
                         possible_link = _(
