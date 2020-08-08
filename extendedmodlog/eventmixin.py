@@ -3,6 +3,7 @@ import discord
 import asyncio
 import logging
 import io
+import math
 
 from discord.ext.commands.converter import Converter
 from discord.ext.commands.errors import BadArgument
@@ -12,7 +13,7 @@ from redbot.core.bot import Red
 from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils.chat_formatting import humanize_list, inline, escape
 
-from typing import Union, cast, Sequence
+from typing import Union, cast, Sequence, Tuple
 
 _ = Translator("ExtendedModLog", __file__)
 logger = logging.getLogger("red.trusty-cogs.ExtendedModLog")
@@ -493,11 +494,12 @@ class EventMixin:
         self.settings[guild.id]["invite_links"] = invites
         return True
 
-    async def get_invite_link(self, guild: discord.Guild) -> str:
+    async def get_invite_link(self, guild: discord.Guild) -> Tuple[str, int]:
         manage_guild = guild.me.guild_permissions.manage_guild
         # invites = await self.config.guild(guild).invite_links()
         invites = self.settings[guild.id]["invite_links"]
         possible_link = ""
+        invite_uses = 0
         check_logs = manage_guild and guild.me.guild_permissions.view_audit_log
         if manage_guild and "VANITY_URL" in guild.features:
             possible_link = str(await guild.vanity_invite())
@@ -508,6 +510,7 @@ class EventMixin:
                     uses = self.settings[guild.id]["invite_links"][invite.code]["uses"]
                     # logger.info(f"{invite.code}: {invite.uses} - {uses}")
                     if invite.uses > uses:
+                        invite_uses = invite.uses
                         possible_link = _(
                             "https://discord.gg/{code}\n" "Invited by: {inviter}"
                         ).format(code=invite.code, inviter=str(invite.inviter))
@@ -535,6 +538,7 @@ class EventMixin:
                                 inviter = await self.bot.get_user_info(data["inviter"])
                             except AttributeError:
                                 inviter = await self.bot.fetch_user(data["inviter"])
+                            invite_uses = data["uses"]
                             possible_link = _(
                                 "https://discord.gg/{code}\n" "Invited by: {inviter}"
                             ).format(code=code, inviter=str(inviter))
@@ -547,7 +551,7 @@ class EventMixin:
                         "https://discord.gg/{code}\n" "Invited by: {inviter}"
                     ).format(code=log.target.code, inviter=str(log.target.inviter))
                     break
-        return possible_link
+        return (possible_link, invite_uses)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -574,7 +578,7 @@ class EventMixin:
 
         created_on = "{}\n({} days ago)".format(user_created, since_created)
 
-        possible_link = await self.get_invite_link(guild)
+        (possible_link, invite_uses) = await self.get_invite_link(guild)
         if embed_links:
             embed = discord.Embed(
                 title=_("Member joined"),
@@ -596,6 +600,7 @@ class EventMixin:
             embed.add_field(name=_("Total Users"), value=str(users), inline=False)
             if possible_link:
                 embed.add_field(name=_("Invite Link"), value=possible_link, inline=False)
+                embed.add_field(name=_("Invite uses"), value=str(invite_uses), inline=False)
             embed.set_thumbnail(url=member.avatar_url)
             await channel.send(embed=embed)
         else:
@@ -657,6 +662,20 @@ class EventMixin:
                 timestamp=time,
             )
             embed.add_field(name=_("Total Users:"), value=str(len(guild.members)), inline=False)
+
+            time_now = datetime.datetime.utcnow()
+            joined_at = self.fetch_joined_at(member, guild)
+            since_joined = (time_now - joined_at)
+            if since_joined.days > 0:
+                since_joined_str = str(since_joined.days) + ' days'
+            elif since_joined.seconds > 60 * 60:
+                since_joined_str = str(math.ceil(since_joined.seconds / (60 * 60))) + ' hours'
+            elif since_joined.seconds > 60 * 5:
+                since_joined_str = str(math.ceil(since_joined.seconds / 60)) + ' minutes'
+            else:
+                since_joined_str = str(since_joined.seconds) + ' seconds'
+                
+            embed.add_field(name=_("Time on server:"), value=since_joined_str, inline=False)
             if perp:
                 if action == discord.AuditLogAction.kick:
                     embed.add_field(name=_("Kicked by:"), value=perp.mention, inline=False)
