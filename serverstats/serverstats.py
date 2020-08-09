@@ -228,7 +228,7 @@ class ServerStats(commands.Cog):
             "VERIFIED": _("Verified"),
             "DISCOVERABLE": _("Server Discovery"),
             "FEATURABLE": _("Featurable"),
-            "PUBLIC": _("Public"),
+            "COMMUNITY": _("Community"),
             "PUBLIC_DISABLED": _("Public disabled"),
             "INVITE_SPLASH": _("Splash Invite"),
             "VIP_REGIONS": _("VIP Voice Servers"),
@@ -1062,7 +1062,6 @@ class ServerStats(commands.Cog):
             `number` optional[int] number of members to display at a time maximum of 50
             `guild` can be either the server ID or name
         """
-        guild = ctx.guild
         if not guild:
             guild = ctx.guild
         if number > 50:
