@@ -666,7 +666,7 @@ class EventMixin:
             embed.add_field(name=_("Total Users:"), value=str(len(guild.members)), inline=False)
 
             time_now = datetime.datetime.utcnow()
-            joined_at = self.fetch_joined_at(member, guild)
+            joined_at = member.joined_at
             since_joined = (time_now - joined_at)
             if since_joined.days > 0:
                 since_joined_str = str(since_joined.days) + ' days'
