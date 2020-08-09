@@ -34,6 +34,7 @@ class MultiResponse(Converter):
             "text",
             "filter",
             "delete",
+            "publish",
             "react",
             "rename",
             "command",
@@ -58,6 +59,8 @@ class MultiResponse(Converter):
             raise BadArgument(_('I require "Manage Roles" permission to use that.'))
         if result[0] == "filter" and not my_perms.manage_messages:
             raise BadArgument(_('I require "Manage Messages" permission to use that.'))
+        if result[0] == "publish" and not my_perms.manage_messages:
+            raise BadArgument(_('I require "Manage Messages" permission to use that.'))
         if result[0] == "ban" and not my_perms.ban_members:
             raise BadArgument(_('I require "Ban Members" permission to use that.'))
         if result[0] == "kick" and not my_perms.kick_members:
@@ -79,12 +82,18 @@ class MultiResponse(Converter):
                 raise BadArgument(_("Not creating trigger."))
             if not pred.result:
                 raise BadArgument(_("Not creating trigger."))
+
+        def author_perms(ctx: commands.Context, role: discord.Role) -> bool:
+            if ctx.author.id == ctx.guild.owner.id:
+                return True
+            return role < ctx.author.top_role
+
         if result[0] in ["add_role", "remove_role"]:
             good_roles = []
             for r in result[1:]:
                 try:
                     role = await RoleConverter().convert(ctx, r)
-                    if role < ctx.guild.me.top_role and role < ctx.author.top_role:
+                    if role < ctx.guild.me.top_role and author_perms(ctx, role):
                         good_roles.append(role.id)
                 except BadArgument:
                     log.error("Role `{}` not found.".format(r))
@@ -126,9 +135,7 @@ class Trigger:
     ocr_search: bool
     delete_after: int
 
-    def __init__(
-        self, name, regex, response_type, author, **kwargs
-    ):
+    def __init__(self, name, regex, response_type, author, **kwargs):
         self.name = name
         self.regex = re.compile(regex)
         self.response_type = response_type
@@ -151,18 +158,18 @@ class Trigger:
         """This is defined moreso for debugging purposes but may prove useful for elaborating
         what is defined for each trigger individually"""
         info = _(
-                "__Name__: **{name}** \n"
-                "__Active__: **{enabled}**\n"
-                "__Author__: {author}\n"
-                "__Count__: **{count}**\n"
-                "__Response__: **{response}**\n"
-            ).format(
-                    name=self.name,
-                    enabled=self.enabled,
-                    author=self.author,
-                    count=self.count,
-                    response=self.response_type,
-                )
+            "__Name__: **{name}** \n"
+            "__Active__: **{enabled}**\n"
+            "__Author__: {author}\n"
+            "__Count__: **{count}**\n"
+            "__Response__: **{response}**\n"
+        ).format(
+            name=self.name,
+            enabled=self.enabled,
+            author=self.author,
+            count=self.count,
+            response=self.response_type,
+        )
         if self.ignore_commands:
             info += _("Ignore commands: **{ignore}**\n").format(ignore=self.ignore_commands)
         if "text" in self.response_type:
@@ -191,9 +198,7 @@ class Trigger:
             info += _("__Command__: ") + "**{response}**\n".format(response=response)
         if "react" in self.response_type:
             if self.multi_payload:
-                emoji_response = [
-                    r for t in self.multi_payload for r in t[1:] if t[0] == "react"
-                ]
+                emoji_response = [r for t in self.multi_payload for r in t[1:] if t[0] == "react"]
             else:
                 emoji_response = self.text
             server_emojis = "".join(f"<{e}>" for e in emoji_response if len(e) > 5)
@@ -230,9 +235,7 @@ class Trigger:
         if self.ignore_edits:
             info += _("Ignoring edits: **Enabled**\n")
         if self.delete_after:
-            info += _("Message deleted after: {time} seconds.\n").format(
-                time=self.delete_after
-            )
+            info += _("Message deleted after: {time} seconds.\n").format(time=self.delete_after)
         info += _("__Regex__: ") + self.regex.pattern
         return info
 

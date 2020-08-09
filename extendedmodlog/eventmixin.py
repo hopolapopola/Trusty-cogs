@@ -245,7 +245,9 @@ class EventMixin:
         )
         if embed_links:
             embed = discord.Embed(
-                description=message.content, colour=await self.get_colour(channel), timestamp=time,
+                description=message.content,
+                colour=await self.get_event_colour(guild, "commands_used"),
+                timestamp=time,
             )
             embed.add_field(name=_("Channel"), value=message.channel.mention)
             embed.add_field(name=_("Can Run"), value=str(can_run))
@@ -871,6 +873,7 @@ class EventMixin:
                 ),
                 icon_url=str(perp.avatar_url),
             )
+            embed.add_field(name=_("Deleted by "), value=perp.mention)
         if reason:
             perp_msg += _(" Reason: {reason}").format(reason=reason)
             embed.add_field(name=_("Reason "), value=reason)
@@ -1775,7 +1778,6 @@ class EventMixin:
             before_attr = getattr(before, attr)
             after_attr = getattr(after, attr)
             if before_attr != after_attr:
-                worth_sending = True
                 if attr == "roles":
                     b = set(before.roles)
                     a = set(after.roles)
@@ -1785,10 +1787,12 @@ class EventMixin:
                         for role in before_roles:
                             msg += role.name + _(" Role Removed.")
                             embed.description = role.mention + _(" Role removed.")
+                            worth_sending = True
                     if after_roles:
                         for role in after_roles:
                             msg += role.name + _(" Role Applied.")
                             embed.description = role.mention + _(" Role applied.")
+                            worth_sending = True
                     if channel.permissions_for(guild.me).view_audit_log:
                         action = discord.AuditLogAction.member_role_update
                         async for log in guild.audit_logs(limit=5, action=action):
@@ -1806,6 +1810,7 @@ class EventMixin:
                                 if log.reason:
                                     reason = log.reason
                                 break
+                    worth_sending = True
                     msg += _("Before ") + f"{name} {before_attr}\n"
                     msg += _("After ") + f"{name} {after_attr}\n"
                     embed.add_field(name=_("Before ") + name, value=str(before_attr)[:1024], inline=False)

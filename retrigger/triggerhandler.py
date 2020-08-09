@@ -11,7 +11,7 @@ import re
 from io import BytesIO
 from copy import copy
 from datetime import datetime
-from typing import List, Union, Pattern, cast, Dict, Tuple, Any
+from typing import List, Union, Pattern, cast, Dict, Tuple, Any, Literal
 
 from redbot.core.bot import Red
 from redbot.core import commands, Config, modlog
@@ -25,6 +25,7 @@ from multiprocessing import TimeoutError
 from multiprocessing.pool import Pool
 
 from .converters import Trigger, ChannelUserRole
+from .message import ReTriggerMessage
 
 try:
     from PIL import Image
@@ -73,11 +74,11 @@ class TriggerHandler:
         self.ALLOW_RESIZE = ALLOW_RESIZE
         self.ALLOW_OCR = ALLOW_OCR
 
-    async def remove_trigger_from_cache(self, guild: discord.Guild, trigger: Trigger) -> None:
+    async def remove_trigger_from_cache(self, guild_id: int, trigger: Trigger) -> None:
         try:
-            for t in self.triggers[guild.id]:
+            for t in self.triggers[guild_id]:
                 if t.name == trigger.name:
-                    self.triggers[guild.id].remove(t)
+                    self.triggers[guild_id].remove(t)
         except ValueError:
             # it will get removed on the next reload of the cog
             log.info("Trigger can't be removed :blobthinking:")
@@ -318,7 +319,10 @@ class TriggerHandler:
                 whitelist_s = ", ".join(x.mention for x in whitelist)
             else:
                 whitelist_s = ", ".join(x.name for x in whitelist)
-            responses = humanize_list(trigger.response_type)
+            if trigger.response_type:
+                responses = humanize_list(trigger.response_type)
+            else:
+                responses = _("This trigger has no actions and should be removed.")
 
             info = _(
                 "__Name__: **{name}** \n"
@@ -341,7 +345,7 @@ class TriggerHandler:
                     enabled=good if trigger.name in active_triggers else bad,
                     author=author.name,
                     count=trigger.count,
-                    response=responses
+                    response=responses,
                 )
             if trigger.ignore_commands:
                 info += _("Ignore commands: **{ignore}**\n").format(ignore=trigger.ignore_commands)
@@ -514,6 +518,9 @@ class TriggerHandler:
         if message.guild is None:
             return
         if message.author.bot:
+            return
+        if getattr(message, "retrigger", False):
+            log.debug("A ReTrigger dispatched message, ignoring.")
             return
         await self.check_triggers(message, False)
 
@@ -749,13 +756,43 @@ class TriggerHandler:
             except Exception:
                 log.error(error_in, exc_info=True)
 
+        if "rename" in trigger.response_type and own_permissions.manage_nicknames:
+            # rename above text so the mention shows the renamed user name
+            if author == guild.owner:
+                # Don't want to accidentally kick the bot owner
+                # or try to kick the guild owner
+                return
+            if guild.me.top_role > author.top_role:
+                if trigger.multi_payload:
+                    text_response = "\n".join(
+                        t[1] for t in trigger.multi_payload if t[0] == "rename"
+                    )
+                else:
+                    text_response = str(trigger.text)
+                response = await self.convert_parms(message, text_response, trigger)
+                if response and not channel.permissions_for(author).mention_everyone:
+                    response = escape(response, mass_mentions=True)
+                try:
+                    await author.edit(nick=response[:32], reason=reason)
+                except discord.errors.Forbidden:
+                    log.debug(error_in, exc_info=True)
+                except Exception:
+                    log.error(error_in, exc_info=True)
+
+        if "publish" in trigger.response_type and own_permissions.manage_messages:
+            if channel.is_news():
+                try:
+                    await message.publish()
+                except Exception:
+                    log.exception(error_in)
+
         if "text" in trigger.response_type and own_permissions.send_messages:
             await channel.trigger_typing()
             if trigger.multi_payload:
                 text_response = "\n".join(t[1] for t in trigger.multi_payload if t[0] == "text")
             else:
                 text_response = str(trigger.text)
-            response = await self.convert_parms(message, text_response, trigger.regex)
+            response = await self.convert_parms(message, text_response, trigger)
             if response and not channel.permissions_for(author).mention_everyone:
                 response = escape(response, mass_mentions=True)
             try:
@@ -768,9 +805,7 @@ class TriggerHandler:
         if "randtext" in trigger.response_type and own_permissions.send_messages:
             await channel.trigger_typing()
             rand_text_response: str = random.choice(trigger.text)
-            crand_text_response = await self.convert_parms(
-                message, rand_text_response, trigger.regex
-            )
+            crand_text_response = await self.convert_parms(message, rand_text_response, trigger)
             if crand_text_response and not channel.permissions_for(author).mention_everyone:
                 crand_text_response = escape(crand_text_response, mass_mentions=True)
             try:
@@ -787,7 +822,7 @@ class TriggerHandler:
             image_text_response = trigger.text
             if image_text_response:
                 image_text_response = await self.convert_parms(
-                    message, image_text_response, trigger.regex
+                    message, image_text_response, trigger
                 )
             if image_text_response and not channel.permissions_for(author).mention_everyone:
                 image_text_response = escape(image_text_response, mass_mentions=True)
@@ -806,7 +841,7 @@ class TriggerHandler:
             rimage_text_response = trigger.text
             if rimage_text_response:
                 rimage_text_response = await self.convert_parms(
-                    message, rimage_text_response, trigger.regex
+                    message, rimage_text_response, trigger
                 )
 
             if rimage_text_response and not channel.permissions_for(author).mention_everyone:
@@ -823,7 +858,7 @@ class TriggerHandler:
                 dm_response = "\n".join(t[1] for t in trigger.multi_payload if t[0] == "dm")
             else:
                 dm_response = str(trigger.text)
-            response = await self.convert_parms(message, dm_response, trigger.regex)
+            response = await self.convert_parms(message, dm_response, trigger)
             try:
                 await author.send(response)
             except discord.errors.Forbidden:
@@ -836,7 +871,7 @@ class TriggerHandler:
                 dm_response = "\n".join(t[1] for t in trigger.multi_payload if t[0] == "dmme")
             else:
                 dm_response = str(trigger.text)
-            response = await self.convert_parms(message, dm_response, trigger.regex)
+            response = await self.convert_parms(message, dm_response, trigger)
             try:
                 trigger_author = await self.bot.fetch_user(trigger.author)
             except AttributeError:
@@ -846,7 +881,7 @@ class TriggerHandler:
             try:
                 await trigger_author.send(response)
             except discord.errors.Forbidden:
-                await self.remove_trigger_from_cache(guild, trigger)
+                await self.remove_trigger_from_cache(guild.id, trigger)
                 log.debug(error_in, exc_info=True)
             except Exception:
                 log.error(error_in, exc_info=True)
@@ -862,28 +897,6 @@ class TriggerHandler:
                 try:
                     await message.add_reaction(emoji)
                 except (discord.errors.Forbidden, discord.errors.NotFound):
-                    log.debug(error_in, exc_info=True)
-                except Exception:
-                    log.error(error_in, exc_info=True)
-
-        if "rename" in trigger.response_type and own_permissions.manage_nicknames:
-            if author == guild.owner:
-                # Don't want to accidentally kick the bot owner
-                # or try to kick the guild owner
-                return
-            if guild.me.top_role > author.top_role:
-                if trigger.multi_payload:
-                    text_response = "\n".join(
-                        t[1] for t in trigger.multi_payload if t[0] == "rename"
-                    )
-                else:
-                    text_response = str(trigger.text)
-                response = await self.convert_parms(message, text_response, trigger.regex)
-                if response and not channel.permissions_for(author).mention_everyone:
-                    response = escape(response, mass_mentions=True)
-                try:
-                    await author.edit(nick=response[:32], reason=reason)
-                except discord.errors.Forbidden:
                     log.debug(error_in, exc_info=True)
                 except Exception:
                     log.error(error_in, exc_info=True)
@@ -964,22 +977,24 @@ class TriggerHandler:
             if trigger.multi_payload:
                 command_response = [t[1] for t in trigger.multi_payload if t[0] == "command"]
                 for command in command_response:
-                    command = await self.convert_parms(message, command, trigger.regex)
+                    command = await self.convert_parms(message, command, trigger)
                     msg = copy(message)
                     prefix_list = await self.bot.command_prefix(self.bot, message)
                     msg.content = prefix_list[0] + command
+                    msg = ReTriggerMessage(message=msg)
                     self.bot.dispatch("message", msg)
             else:
                 msg = copy(message)
-                command = await self.convert_parms(message, str(trigger.text), trigger.regex)
+                command = await self.convert_parms(message, str(trigger.text), trigger)
                 prefix_list = await self.bot.command_prefix(self.bot, message)
                 msg.content = prefix_list[0] + command
+                msg = ReTriggerMessage(message=msg)
                 self.bot.dispatch("message", msg)
         if "mock" in trigger.response_type:
             if trigger.multi_payload:
                 mock_response = [t[1] for t in trigger.multi_payload if t[0] == "mock"]
                 for command in mock_response:
-                    command = await self.convert_parms(message, command, trigger.regex)
+                    command = await self.convert_parms(message, command, trigger)
                     msg = copy(message)
                     mocker = guild.get_member(trigger.author)
                     if not mocker:
@@ -987,16 +1002,18 @@ class TriggerHandler:
                     msg.author = mocker
                     prefix_list = await self.bot.command_prefix(self.bot, message)
                     msg.content = prefix_list[0] + command
+                    msg = ReTriggerMessage(message=msg)
                     self.bot.dispatch("message", msg)
             else:
                 msg = copy(message)
                 mocker = guild.get_member(trigger.author)
-                command = await self.convert_parms(message, str(trigger.text), trigger.regex)
+                command = await self.convert_parms(message, str(trigger.text), trigger)
                 if not mocker:
                     return  # We'll exit early if the author isn't on the server anymore
                 msg.author = mocker
                 prefix_list = await self.bot.command_prefix(self.bot, message)
                 msg.content = prefix_list[0] + command
+                msg = ReTriggerMessage(message=msg)
                 self.bot.dispatch("message", msg)
 
         if "delete" in trigger.response_type and own_permissions.manage_messages:
@@ -1014,7 +1031,7 @@ class TriggerHandler:
                 log.error(error_in, exc_info=True)
 
     async def convert_parms(
-        self, message: discord.Message, raw_response: str, regex_replace: Pattern
+        self, message: discord.Message, raw_response: str, trigger: Trigger
     ) -> str:
         # https://github.com/Cog-Creators/Red-DiscordBot/blob/V3/develop/redbot/cogs/customcom/customcom.py
         # ctx = await self.bot.get_context(message)
@@ -1025,7 +1042,7 @@ class TriggerHandler:
         results = RE_POS.findall(raw_response)
         if results:
             for result in results:
-                search = regex_replace.search(message.content)
+                search = trigger.regex.search(message.content)
                 if not search:
                     continue
                 try:
@@ -1039,6 +1056,11 @@ class TriggerHandler:
                         f"Retrigger Encountered an error converting parameters", exc_info=True
                     )
                     continue
+        raw_response = raw_response.replace("{count}", str(trigger.count))
+        if hasattr(message.channel, "guild"):
+            prefixes = await self.bot.get_prefix(message.channel)
+            raw_response = raw_response.replace("[p]", prefixes[0])
+            raw_response = raw_response.replace("[pp]", humanize_list(prefixes))
         return raw_response
         # await ctx.send(raw_response)
 
@@ -1129,9 +1151,26 @@ class TriggerHandler:
                 log.error("Error posting modlog message", exc_info=True)
                 pass
 
-    async def remove_trigger(self, guild: discord.Guild, trigger_name: str) -> bool:
+    async def red_delete_data_for_user(
+        self,
+        *,
+        requester: Literal["discord_deleted_user", "owner", "user", "user_strict"],
+        user_id: int,
+    ):
+        """
+            Method for finding users data inside the cog and deleting it.
+        """
+        all_guilds = await self.config.all_guilds()
+        for guild_id, data in all_guilds.items():
+            for trigger_name, trigger in data["trigger_list"].items():
+                if trigger["author"] == user_id:
+                    await self.remove_trigger(guild_id, trigger_name)
+                    t = await Trigger.from_json(trigger)
+                    await self.remove_trigger_from_cache(guild_id, t)
+
+    async def remove_trigger(self, guild_id: int, trigger_name: str) -> bool:
         """Returns true or false if the trigger was removed"""
-        async with self.config.guild(guild).trigger_list() as trigger_list:
+        async with self.config.guild_from_id(guild_id).trigger_list() as trigger_list:
             for triggers in trigger_list:
                 # trigger = Trigger.from_json(trigger_list[triggers])
                 if triggers == trigger_name:
@@ -1139,21 +1178,21 @@ class TriggerHandler:
                         image = trigger_list[triggers]["image"]
                         if isinstance(image, list):
                             for i in image:
-                                path = str(cog_data_path(self)) + f"/{guild.id}/{i}"
+                                path = str(cog_data_path(self)) + f"/{guild_id}/{i}"
                                 try:
                                     os.remove(path)
                                 except Exception:
                                     msg = _("Error deleting saved image in {guild}").format(
-                                        guild=guild.id
+                                        guild=guild_id
                                     )
                                     log.error(msg, exc_info=True)
                         else:
-                            path = str(cog_data_path(self)) + f"/{guild.id}/{image}"
+                            path = str(cog_data_path(self)) + f"/{guild_id}/{image}"
                             try:
                                 os.remove(path)
                             except Exception:
                                 msg = _("Error deleting saved image in {guild}").format(
-                                    guild=guild.id
+                                    guild=guild_id
                                 )
                                 log.error(msg, exc_info=True)
                     del trigger_list[triggers]
