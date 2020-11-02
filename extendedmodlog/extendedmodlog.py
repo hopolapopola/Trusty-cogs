@@ -1,14 +1,13 @@
-import discord
 import logging
-
-from redbot.core import commands, checks, Config, modlog
-from redbot.core.utils.chat_formatting import humanize_list
-from redbot.core.i18n import Translator, cog_i18n
 from typing import Union
 
-from .eventmixin import EventMixin, CommandPrivs, EventChooser
-from .settings import inv_settings
+import discord
+from redbot.core import Config, checks, commands, modlog
+from redbot.core.i18n import Translator, cog_i18n
+from redbot.core.utils.chat_formatting import humanize_list
 
+from .eventmixin import CommandPrivs, EventChooser, EventMixin
+from .settings import inv_settings
 
 _ = Translator("ExtendedModLog", __file__)
 logger = logging.getLogger("red.trusty-cogs.ExtendedModLog")
@@ -17,12 +16,12 @@ logger = logging.getLogger("red.trusty-cogs.ExtendedModLog")
 @cog_i18n(_)
 class ExtendedModLog(EventMixin, commands.Cog):
     """
-        Extended modlogs
-        Works with core modlogset channel
+    Extended modlogs
+    Works with core modlogset channel
     """
 
     __author__ = ["RePulsar", "TrustyJAID"]
-    __version__ = "2.8.8"
+    __version__ = "2.8.14"
 
     def __init__(self, bot):
         self.bot = bot
@@ -30,14 +29,21 @@ class ExtendedModLog(EventMixin, commands.Cog):
         self.config.register_guild(**inv_settings)
         self.config.register_global(version="0.0.0")
         self.settings = {}
+        self._ban_cache = {}
         self.loop = bot.loop.create_task(self.invite_links_loop())
 
     def format_help_for_context(self, ctx: commands.Context):
         """
-            Thanks Sinbad!
+        Thanks Sinbad!
         """
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(self, **kwargs):
+        """
+        Nothing to delete
+        """
+        return
 
     async def initialize(self) -> None:
         all_data = await self.config.all_guilds()
@@ -140,10 +146,10 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @commands.guild_only()
     async def _modlog(self, ctx: commands.Context) -> None:
         """
-            Toggle various extended modlog notifications
+        Toggle various extended modlog notifications
 
-            Requires the channel to be setup with `[p]modlogset modlog #channel`
-            Or can be sent to separate channels with `[p]modlog channel #channel event_name`
+        Requires the channel to be setup with `[p]modlogset modlog #channel`
+        Or can be sent to separate channels with `[p]modlog channel #channel event_name`
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -251,7 +257,10 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_modlog.command(name="emojiset", send_help=True)
     @commands.bot_has_permissions(add_reactions=True)
     async def _set_event_emoji(
-        self, ctx: commands.Context, emoji: Union[discord.Emoji, str], *events: EventChooser,
+        self,
+        ctx: commands.Context,
+        emoji: Union[discord.Emoji, str],
+        *events: EventChooser,
     ) -> None:
         """
             Set the emoji used in text modlogs.
@@ -305,7 +314,10 @@ class ExtendedModLog(EventMixin, commands.Cog):
 
     @_modlog.command(name="toggle")
     async def _set_event_on_or_off(
-        self, ctx: commands.Context, set_to: bool, *events: EventChooser,
+        self,
+        ctx: commands.Context,
+        set_to: bool,
+        *events: EventChooser,
     ) -> None:
         """
             Turn on and off specific modlog actions
@@ -332,7 +344,7 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 `member_ban`
                 `member_unban`
 
-                **Requires Red 3.3 and discord.py 1.3**
+                ** requires manage_channel permissions**
                 `invite_created`
                 `invite_deleted`
         """
@@ -353,7 +365,10 @@ class ExtendedModLog(EventMixin, commands.Cog):
 
     @_modlog.command(name="channel")
     async def _set_event_channel(
-        self, ctx: commands.Context, channel: discord.TextChannel, *events: EventChooser,
+        self,
+        ctx: commands.Context,
+        channel: discord.TextChannel,
+        *events: EventChooser,
     ) -> None:
         """
             Set the channel for modlogs.
@@ -401,7 +416,9 @@ class ExtendedModLog(EventMixin, commands.Cog):
 
     @_modlog.command(name="resetchannel")
     async def _reset_event_channel(
-        self, ctx: commands.Context, *events: EventChooser,
+        self,
+        ctx: commands.Context,
+        *events: EventChooser,
     ) -> None:
         """
             Reset the modlog event to the default modlog channel.
@@ -440,17 +457,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 event, value=self.settings[ctx.guild.id][event]
             )
         await ctx.send(
-            _("{event} logs channel have been reset.").format(
-                event=humanize_list(events)
-            )
+            _("{event} logs channel have been reset.").format(event=humanize_list(events))
         )
 
     @_modlog.command(name="all", aliaes=["all_settings", "toggle_all"])
     async def _toggle_all_logs(self, ctx: commands.Context, set_to: bool) -> None:
         """
-            Turn all logging options on or off
+        Turn all logging options on or off
 
-            `<set_to>` what to set all logging settings to must be `true`, `false`, `yes`, `no`.
+        `<set_to>` what to set all logging settings to must be `true`, `false`, `yes`, `no`.
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -463,7 +478,7 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_modlog.command(name="botedits", aliases=["botedit"])
     async def _edit_toggle_bots(self, ctx: commands.Context) -> None:
         """
-            Toggle message edit notifications for bot users
+        Toggle message edit notifications for bot users
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -482,9 +497,9 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_modlog.command(name="botdeletes", aliases=["botdelete"])
     async def _delete_bots(self, ctx: commands.Context) -> None:
         """
-            Toggle message delete notifications for bot users
+        Toggle message delete notifications for bot users
 
-            This will not affect delete notifications for messages that aren't in bot's cache.
+        This will not affect delete notifications for messages that aren't in bot's cache.
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -503,14 +518,14 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_modlog.group(name="delete")
     async def _delete(self, ctx: commands.Context) -> None:
         """
-            Delete logging settings
+        Delete logging settings
         """
         pass
 
     @_delete.command(name="bulkdelete")
     async def _delete_bulk_toggle(self, ctx: commands.Context) -> None:
         """
-            Toggle bulk message delete notifications
+        Toggle bulk message delete notifications
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -529,7 +544,7 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_delete.command(name="individual")
     async def _delete_bulk_individual(self, ctx: commands.Context) -> None:
         """
-            Toggle individual message delete notifications for bulk message delete
+        Toggle individual message delete notifications for bulk message delete
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -548,10 +563,10 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_delete.command(name="cachedonly")
     async def _delete_cachedonly(self, ctx: commands.Context) -> None:
         """
-            Toggle message delete notifications for non-cached messages
+        Toggle message delete notifications for non-cached messages
 
-            Delete notifications for non-cached messages
-            will only show channel info without content of deleted message or its author.
+        Delete notifications for non-cached messages
+        will only show channel info without content of deleted message or its author.
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -570,9 +585,9 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_modlog.command(name="botchange")
     async def _user_bot_logging(self, ctx: commands.Context) -> None:
         """
-            Toggle bots from being logged in user updates
+        Toggle bots from being logged in user updates
 
-            This includes roles and nickname.
+        This includes roles and nickname.
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -587,7 +602,7 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_modlog.command(name="nickname", aliases=["nicknames"])
     async def _user_nickname_logging(self, ctx: commands.Context) -> None:
         """
-            Toggle nickname updates for user changes
+        Toggle nickname updates for user changes
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -602,14 +617,14 @@ class ExtendedModLog(EventMixin, commands.Cog):
     @_modlog.command(name="commandlevel", aliases=["commandslevel"])
     async def _command_level(self, ctx: commands.Context, *level: CommandPrivs) -> None:
         """
-            Set the level of commands to be logged
+        Set the level of commands to be logged
 
-            `[level...]` must include all levels you want from:
-            MOD, ADMIN, BOT_OWNER, GUILD_OWNER, and NONE
+        `[level...]` must include all levels you want from:
+        MOD, ADMIN, BOT_OWNER, GUILD_OWNER, and NONE
 
-            These are the basic levels commands check for in permissions.
-            `NONE` is a command anyone has permission to use, where as `MOD`
-            can be `mod or permissions`
+        These are the basic levels commands check for in permissions.
+        `NONE` is a command anyone has permission to use, where as `MOD`
+        can be `mod or permissions`
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -628,9 +643,9 @@ class ExtendedModLog(EventMixin, commands.Cog):
         channel: Union[discord.TextChannel, discord.CategoryChannel, discord.VoiceChannel],
     ) -> None:
         """
-            Ignore a channel from message delete/edit events and bot commands
+        Ignore a channel from message delete/edit events and bot commands
 
-            `channel` the channel or category to ignore events in
+        `channel` the channel or category to ignore events in
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings
@@ -653,9 +668,9 @@ class ExtendedModLog(EventMixin, commands.Cog):
         channel: Union[discord.TextChannel, discord.CategoryChannel, discord.VoiceChannel],
     ) -> None:
         """
-            Unignore a channel from message delete/edit events and bot commands
+        Unignore a channel from message delete/edit events and bot commands
 
-            `channel` the channel to unignore message delete/edit events
+        `channel` the channel to unignore message delete/edit events
         """
         if ctx.guild.id not in self.settings:
             self.settings[ctx.guild.id] = inv_settings

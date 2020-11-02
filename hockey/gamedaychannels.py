@@ -1,19 +1,21 @@
-import discord
-from datetime import datetime
-from redbot.core import Config
-from .game import Game
-from .constants import CONFIG_ID, TEAMS
-from .pickems import Pickems
-from .helper import utc_to_local
 import logging
+from datetime import datetime
+
+import discord
+from redbot.core import Config
+
+from .constants import CONFIG_ID, TEAMS
+from .game import Game
+from .helper import utc_to_local
+from .pickems import Pickems
 
 log = logging.getLogger("red.trusty-cogs.Hockey")
 
 
 class GameDayChannels:
     """
-        This is where the functions to handle creation and deletion
-        of game day channels is stored
+    This is where the functions to handle creation and deletion
+    of game day channels is stored
     """
 
     def __init__(self):
@@ -22,7 +24,7 @@ class GameDayChannels:
     @staticmethod
     async def get_chn_name(game):
         """
-            Creates game day channel name
+        Creates game day channel name
         """
         timestamp = utc_to_local(game.game_start)
         chn_name = "{}-vs-{}-{}-{}-{}".format(
@@ -73,9 +75,9 @@ class GameDayChannels:
     @staticmethod
     async def create_gdc(bot, guild, game_data=None):
         """
-            Creates a game day channel for the given game object
-            if no game object is passed it looks for the set team for the guild
-            returns None if not setup
+        Creates a game day channel for the given game object
+        if no game object is passed it looks for the set team for the guild
+        returns None if not setup
         """
         config = bot.get_cog("Hockey").config
         category_id = await config.guild(guild).category()
@@ -169,7 +171,7 @@ class GameDayChannels:
     @staticmethod
     async def delete_gdc(bot, guild):
         """
-            Deletes all game day channels in a given guild
+        Deletes all game day channels in a given guild
         """
         config = bot.get_cog("Hockey").config
         channels = await config.guild(guild).gdc()
