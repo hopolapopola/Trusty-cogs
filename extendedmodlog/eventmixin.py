@@ -337,9 +337,10 @@ class EventMixin:
         )
         time = message.created_at
         perp = None
+        check_after = time + datetime.timedelta(seconds=-20)
         if channel.permissions_for(guild.me).view_audit_log and check_audit_log:
             action = discord.AuditLogAction.message_delete
-            async for log in guild.audit_logs(limit=2, action=action):
+            async for log in guild.audit_logs(limit=2, action=action, after=check_after):
                 same_chan = log.extra.channel.id == message.channel.id
                 if log.target.id == message.author.id and same_chan:
                     perp = f"{log.user}({log.user.id})"
@@ -638,16 +639,6 @@ class EventMixin:
             await channel.send(msg)
 
     @commands.Cog.listener()
-    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
-        """
-        This is only used to track that the user was banned and not kicked/removed
-        """
-        if guild not in self._ban_cache:
-            self._ban_cache[guild] = [member]
-        else:
-            self._ban_cache[guild].append(member)
-
-    @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         guild = member.guild
         await asyncio.sleep(5)
@@ -670,7 +661,7 @@ class EventMixin:
             and self.settings[guild.id]["user_left"]["embed"]
         )
         time = datetime.datetime.utcnow()
-        check_after = time + datetime.timedelta(minutes=-5)
+        check_after = time + datetime.timedelta(minutes=-2)
         perp = None
         reason = None
         action = None
@@ -832,9 +823,10 @@ class EventMixin:
         # msg = _("Channel Created ") + str(new_channel.id) + "\n"
         perp = None
         reason = None
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.channel_create
-            async for log in guild.audit_logs(limit=2, action=action):
+            async for log in guild.audit_logs(limit=2, action=action, after=check_after):
                 if log.target.id == new_channel.id:
                     perp = log.user
                     if log.reason:
@@ -898,9 +890,10 @@ class EventMixin:
         embed.set_footer(text=_("Channel ID: ") + str(old_channel.id))
         perp = None
         reason = None
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.channel_delete
-            async for log in guild.audit_logs(limit=2, action=action):
+            async for log in guild.audit_logs(limit=2, action=action, after=check_after):
                 if log.target.id == old_channel.id:
                     perp = log.user
                     if log.reason:
@@ -970,10 +963,11 @@ class EventMixin:
         )
         perp = None
         reason = None
+        check_after = time + datetime.timedelta(minutes=-5)
         worth_updating = False
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.channel_update
-            async for log in guild.audit_logs(limit=5, action=action):
+            async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                 if log.target.id == before.id:
                     perp = log.user
                     if log.reason:
@@ -1108,9 +1102,11 @@ class EventMixin:
             return
         perp = None
         reason = None
+        time = datetime.datetime.utcnow()
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.role_update
-            async for log in guild.audit_logs(limit=5, action=action):
+            async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                 if log.target.id == before.id:
                     perp = log.user
                     if log.reason:
@@ -1199,9 +1195,11 @@ class EventMixin:
             return
         perp = None
         reason = None
+        time = datetime.datetime.utcnow()
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.role_create
-            async for log in guild.audit_logs(limit=5, action=action):
+            async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                 if log.target.id == role.id:
                     perp = log.user
                     if log.reason:
@@ -1257,9 +1255,11 @@ class EventMixin:
             return
         perp = None
         reason = None
+        time = datetime.datetime.utcnow()
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.role_delete
-            async for log in guild.audit_logs(limit=5, action=action):
+            async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                 if log.target.id == role.id:
                     perp = log.user
                     if log.reason:
@@ -1646,11 +1646,12 @@ class EventMixin:
                     )
         perp = None
         reason = None
+        check_after = time + datetime.timedelta(minutes=-5)
         if not worth_updating:
             return
         if channel.permissions_for(guild.me).view_audit_log:
             if action:
-                async for log in guild.audit_logs(limit=1, action=action):
+                async for log in guild.audit_logs(limit=1, action=action, after=check_after):
                     perp = log.user
                     if log.reason:
                         reason = log.reason
@@ -1765,8 +1766,9 @@ class EventMixin:
         perp = None
         reason = None
         action = None
+        check_after = time + datetime.timedelta(seconds=-30)
         if channel.permissions_for(guild.me).view_audit_log and change_type:
-            async for log in guild.audit_logs(limit=1, action=None):
+            async for log in guild.audit_logs(limit=1, action=None, after=check_after):
                 action = log.action
                 is_change = getattr(log.after, change_type, None)
                 if action == discord.AuditLogAction.member_update:
@@ -1860,29 +1862,48 @@ class EventMixin:
                 if attr == "roles":
                     b = set(before.roles)
                     a = set(after.roles)
-                    before_roles = list(b - a)
-                    after_roles = list(a - b)
-                    if before_roles:
-                        for role in before_roles:
-                            msg += _("{author} had the {role} role removed.").format(
-                                author=after.name, role=role.name
-                            )
-                            embed.description = _("{author} had the {role} role removed.").format(
-                                author=after.mention, role=role.mention
-                            )
-                            worth_sending = True
-                    if after_roles:
-                        for role in after_roles:
-                            msg += _("{author} had the {role} role applied.").format(
-                                author=after.name, role=role.name
-                            )
-                            embed.description = _("{author} had the {role} role applied.").format(
-                                author=after.mention, role=role.mention
-                            )
-                            worth_sending = True
+                    removed_roles = list(b - a)
+                    added_roles = list(a - b)
+                    removed_str = ""
+                    added_str = ""
+                    
+                    for role in removed_roles:
+                        removed_str = removed_str + _("{rolemention} ").format(
+                            rolemention=role.mention
+                        )
+                    for role in added_roles:
+                        added_str = added_str + _("{rolemention} ").format(
+                            rolemention=role.mention
+                        )
+
+                    if ((len(removed_roles) > 0) and (len(added_roles) == 0)):
+                        msg += _("{author} had the {role} roles removed.").format(
+                            author=after.name, role=removed_str
+                        )
+                        embed.description = _("**Removed: **{role}").format(
+                            author=after.mention, role=removed_str
+                        )
+                        worth_sending = True
+                    elif ((len(removed_roles) == 0) and (len(added_roles) > 0)):
+                        msg += _("{author} had the {role} roles added.").format(
+                            author=after.name, role=added_str
+                        )
+                        embed.description = _("**Added: **{role}").format(
+                            author=after.mention, role=added_str
+                        )
+                        worth_sending = True
+                    elif ((len(removed_roles) > 0) and (len(added_roles) > 0)):
+                        msg += _("{author} had the {roleadd} roles added and the {roleremove} roles removed.").format(
+                            author=after.name, roleadd=added_str, roleremove=removed_str
+                        )
+                        embed.description = _("Added: {roleadd}\nRemoved: {roleremove}").format(
+                            author=after.mention, roleadd=added_str, roleremove=removed_str
+                        )
+                        worth_sending = True
+                    check_after = time + datetime.timedelta(minutes=-5)
                     if channel.permissions_for(guild.me).view_audit_log:
                         action = discord.AuditLogAction.member_role_update
-                        async for log in guild.audit_logs(limit=5, action=action):
+                        async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                             if log.target.id == before.id:
                                 perp = log.user
                                 if log.reason:
@@ -1891,7 +1912,8 @@ class EventMixin:
                 else:
                     if channel.permissions_for(guild.me).view_audit_log:
                         action = discord.AuditLogAction.member_update
-                        async for log in guild.audit_logs(limit=5, action=action):
+                        check_after = time + datetime.timedelta(minutes=-5)
+                        async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                             if log.target.id == before.id:
                                 perp = log.user
                                 if log.reason:
@@ -1949,9 +1971,10 @@ class EventMixin:
         embed.description = user.mention
         perp = None
         reason = None
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.unban
-            async for log in guild.audit_logs(limit=5, action=action):
+            async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                 if log.target.id == user.id:
                     perp = log.user
                     if log.reason:
@@ -1971,6 +1994,14 @@ class EventMixin:
 
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, user: discord.User) -> None:
+        """
+        This is only used to track that the user was banned and not kicked/removed
+        """
+        if guild not in self._ban_cache:
+            self._ban_cache[guild] = [user]
+        else:
+            self._ban_cache[guild].append(user)
+
         if guild.id not in self.settings:
             return
         if not self.settings[guild.id]["member_ban"]["enabled"]:
@@ -2003,9 +2034,10 @@ class EventMixin:
         embed.description = user.mention
         perp = None
         reason = None
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.unban
-            async for log in guild.audit_logs(limit=5, action=action):
+            async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                 if log.target.id == user.id:
                     perp = log.user
                     if log.reason:
@@ -2154,9 +2186,10 @@ class EventMixin:
         )
         perp = None
         reason = None
+        check_after = time + datetime.timedelta(minutes=-5)
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.invite_delete
-            async for log in guild.audit_logs(limit=3, action=action):
+            async for log in guild.audit_logs(limit=3, action=action, after=check_after):
                 if log.target.code == invite.code:
                     perp = log.user
                     if log.reason:
