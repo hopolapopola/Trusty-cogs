@@ -29,6 +29,8 @@ class ReTriggerMessage(discord.Message):
         self.channel = message.channel
         self.content = message.content
         self.guild = message.channel.guild  # type: ignore
+        # this is required to fix an issue with cooldown commands
+        self._edited_timestamp = message.created_at
         # this attribute being in almost everything (and needing to be) is a pain
         self._state = self.guild._state  # type: ignore
         # sane values below, fresh messages which are commands should exhibit these.
@@ -51,10 +53,7 @@ class ReTriggerMessage(discord.Message):
         self.channel_mentions: List[discord.TextChannel] = list(
             filter(
                 None,
-                [
-                    self.guild.get_channel(idx)  # type: ignore
-                    for idx in self.raw_channel_mentions
-                ],
+                [self.guild.get_channel(idx) for idx in self.raw_channel_mentions],  # type: ignore
             )
         )
         self.role_mentions: List[discord.Role] = list(

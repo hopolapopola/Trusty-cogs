@@ -1,6 +1,7 @@
 import asyncio
-from phue import Bridge
 import functools
+
+from phue import Bridge
 
 
 class Oilers:
@@ -44,6 +45,7 @@ class Oilers:
                 await asyncio.wait_for(task, timeout=60)
             except asyncio.TimeoutError:
                 return
+
         return self.bot.loop.create_task(task())
 
     def reset_light_setting(self):
