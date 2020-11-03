@@ -341,10 +341,11 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log and check_audit_log:
             action = discord.AuditLogAction.message_delete
             async for log in guild.audit_logs(limit=2, action=action, after=check_after):
-                same_chan = log.extra.channel.id == message.channel.id
-                if log.target.id == message.author.id and same_chan:
-                    perp = f"{log.user}({log.user.id})"
-                    break
+                if log.created_at > check_after:
+                    same_chan = log.extra.channel.id == message.channel.id
+                    if log.target.id == message.author.id and same_chan:
+                        perp = f"{log.user}({log.user.id})"
+                        break
         message_channel = cast(discord.TextChannel, message.channel)
         author = message.author
         if perp is None:
@@ -668,20 +669,21 @@ class EventMixin:
         
         if channel.permissions_for(guild.me).view_audit_log:
             async for log in guild.audit_logs(limit=3, action=action, after=check_after):
-                delta = abs((time - log.created_at).total_seconds())
-                if delta <= 5:
-                    if log.action == discord.AuditLogAction.kick:
-                        action = discord.AuditLogAction.kick
-                        if log.target.id == member.id:
-                            perp = log.user
-                            reason = log.reason
-                            break
-                    if log.action == discord.AuditLogAction.ban:
-                        action = discord.AuditLogAction.ban
-                        if log.target.id == member.id:
-                            perp = log.user
-                            reason = log.reason
-                            break
+                if log.created_at > check_after:
+                    delta = abs((time - log.created_at).total_seconds())
+                    if delta <= 5:
+                        if log.action == discord.AuditLogAction.kick:
+                            action = discord.AuditLogAction.kick
+                            if log.target.id == member.id:
+                                perp = log.user
+                                reason = log.reason
+                                break
+                        if log.action == discord.AuditLogAction.ban:
+                            action = discord.AuditLogAction.ban
+                            if log.target.id == member.id:
+                                perp = log.user
+                                reason = log.reason
+                                break
 
         if embed_links:
             embed = discord.Embed(
@@ -827,11 +829,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.channel_create
             async for log in guild.audit_logs(limit=2, action=action, after=check_after):
-                if log.target.id == new_channel.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == new_channel.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
 
         perp_msg = ""
         if perp:
@@ -894,11 +897,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.channel_delete
             async for log in guild.audit_logs(limit=2, action=action, after=check_after):
-                if log.target.id == old_channel.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == old_channel.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         perp_msg = ""
         if perp:
             perp_msg = _("by {perp} (`{perp_id}`)").format(perp=perp, perp_id=perp.id)
@@ -968,11 +972,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.channel_update
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.target.id == before.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == before.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         if type(before) == discord.TextChannel:
             text_updates = {
                 "name": _("Name:"),
@@ -1107,11 +1112,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.role_update
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.target.id == before.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == before.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         embed_links = (
             channel.permissions_for(guild.me).embed_links
             and self.settings[guild.id]["role_change"]["embed"]
@@ -1200,11 +1206,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.role_create
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.target.id == role.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == role.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         embed_links = (
             channel.permissions_for(guild.me).embed_links
             and self.settings[guild.id]["role_create"]["embed"]
@@ -1260,11 +1267,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.role_delete
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.target.id == role.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == role.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         embed_links = (
             channel.permissions_for(guild.me).embed_links
             and self.settings[guild.id]["role_delete"]["embed"]
@@ -1500,11 +1508,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.guild_update
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.target.id == guild.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == guild.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         if perp:
             msg += _("Updated by ") + str(perp) + "\n"
             embed.set_author(
@@ -1652,10 +1661,11 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             if action:
                 async for log in guild.audit_logs(limit=1, action=action, after=check_after):
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                    if log.created_at > check_after:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         if perp:
             msg += _("Updated by ") + str(perp) + "\n"
             embed.set_author(
@@ -1766,29 +1776,30 @@ class EventMixin:
         perp = None
         reason = None
         action = None
-        check_after = time + datetime.timedelta(seconds=-30)
+        check_after = time + datetime.timedelta(minute=-1)
         if channel.permissions_for(guild.me).view_audit_log and change_type:
             async for log in guild.audit_logs(limit=1, action=None, after=check_after):
-                action = log.action
-                is_change = getattr(log.after, change_type, None)
-                if action == discord.AuditLogAction.member_update:
-                    if log.target.id == member.id and is_change:
-                        perp = log.user
-                        if log.reason:
-                            reason = log.reason
-                        break
-                elif action == discord.AuditLogAction.member_move:
-                    if log.extra.count > 0 and log.extra.channel.id == after.channel.id:
-                        perp = log.user
-                        if log.reason:
-                            reason = log.reason
-                        break
-                elif action == discord.AuditLogAction.member_disconnect:
-                    if log.extra.count > 0 and after.channel == None:
-                        perp = log.user
-                        if log.reason:
-                            reason = log.reason
-                        break
+                if log.created_at > check_after:
+                    action = log.action
+                    is_change = getattr(log.after, change_type, None)
+                    if action == discord.AuditLogAction.member_update:
+                        if log.target.id == member.id and is_change:
+                            perp = log.user
+                            if log.reason:
+                                reason = log.reason
+                            break
+                    elif action == discord.AuditLogAction.member_move:
+                        if log.extra.count > 0 and log.extra.channel.id == after.channel.id:
+                            perp = log.user
+                            if log.reason:
+                                reason = log.reason
+                            break
+                    elif action == discord.AuditLogAction.member_disconnect:
+                        if log.extra.count > 0 and after.channel == None:
+                            perp = log.user
+                            if log.reason:
+                                reason = log.reason
+                            break
                     
         if perp:
             if action == discord.AuditLogAction.member_update and before.deaf == False and after.deaf == True:
@@ -1904,21 +1915,23 @@ class EventMixin:
                     if channel.permissions_for(guild.me).view_audit_log:
                         action = discord.AuditLogAction.member_role_update
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                            if log.target.id == before.id:
-                                perp = log.user
-                                if log.reason:
-                                    reason = log.reason
-                                break
+                            if log.created_at > check_after:
+                                if log.target.id == before.id:
+                                    perp = log.user
+                                    if log.reason:
+                                        reason = log.reason
+                                    break
                 else:
                     if channel.permissions_for(guild.me).view_audit_log:
                         action = discord.AuditLogAction.member_update
                         check_after = time + datetime.timedelta(minutes=-5)
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                            if log.target.id == before.id:
-                                perp = log.user
-                                if log.reason:
-                                    reason = log.reason
-                                break
+                            if log.created_at > check_after:
+                                if log.target.id == before.id:
+                                    perp = log.user
+                                    if log.reason:
+                                        reason = log.reason
+                                    break
                     worth_sending = True
                     msg += _("Before ") + f"{name} {before_attr}\n"
                     msg += _("After ") + f"{name} {after_attr}\n"
@@ -1975,11 +1988,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.unban
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.target.id == user.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == user.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         if perp:
             msg += _("Unbanned by ") + f"{perp}\n"
             embed.add_field(name=_("Unbanned by "), value=perp.mention, inline=False)
@@ -2038,11 +2052,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.unban
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.target.id == user.id:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.id == user.id:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
         if perp:
             msg += _("Banned by ") + f"{perp}\n"
             embed.add_field(name=_("Banned by "), value=perp.mention, inline=False)
@@ -2190,11 +2205,12 @@ class EventMixin:
         if channel.permissions_for(guild.me).view_audit_log:
             action = discord.AuditLogAction.invite_delete
             async for log in guild.audit_logs(limit=3, action=action, after=check_after):
-                if log.target.code == invite.code:
-                    perp = log.user
-                    if log.reason:
-                        reason = log.reason
-                    break
+                if log.created_at > check_after:
+                    if log.target.code == invite.code:
+                        perp = log.user
+                        if log.reason:
+                            reason = log.reason
+                        break
 
         worth_updating = False
         for attr, name in invite_attrs.items():
