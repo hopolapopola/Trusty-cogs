@@ -1415,11 +1415,16 @@ class EventMixin:
                 title=_("**Message edited in #{channel}**").format(
                     channel=before.channel.name
                 ),
-                description=_("**Before:** {content}").format(content=before.content),
+                description=_("**Before:**\n{content}").format(content=before.content),
                 colour=await self.get_event_colour(guild, "message_edit"),
                 timestamp=before.created_at,
             )
-            embed.add_field(name=_("After:"), value=after.jump_url, inline=False)
+            if (len(after.content) <= 1024):
+                embed.add_field(name=_("After:"), value=after.content, inline=False)
+            else:
+                embed.add_field(name=_("After (part 1):"), value=after.content[:1000], inline=False)
+                embed.add_field(name=_("After (part 2):"), value=after.content[1000:], inline=False)
+            embed.add_field(name=_("Jump to message:"), value=after.jump_url, inline=False)
             embed.set_footer(text=_("User ID: ") + str(before.author.id))
             embed.set_author(
                 name=_("{member}").format(
