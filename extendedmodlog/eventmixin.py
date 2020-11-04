@@ -1781,7 +1781,7 @@ class EventMixin:
         perp = None
         reason = None
         action = None
-        check_after = time + datetime.timedelta(minute=-1)
+        check_after = time + datetime.timedelta(minutes=-1)
         if channel.permissions_for(guild.me).view_audit_log and change_type:
             async for log in guild.audit_logs(limit=1, action=None, after=check_after):
                 if log.created_at > check_after:
