@@ -37,7 +37,7 @@ class ServerStats(commands.Cog):
     """
 
     __author__ = ["TrustyJAID", "Preda"]
-    __version__ = "1.5.2"
+    __version__ = "1.5.4"
 
     def __init__(self, bot):
         self.bot: Red = bot
@@ -82,7 +82,7 @@ class ServerStats(commands.Cog):
         """
         Display a users avatar in chat
         """
-        if not members:
+        if members is None:
             members = [ctx.author]
 
         await BaseMenu(
@@ -228,22 +228,24 @@ class ServerStats(commands.Cog):
         }
 
         features = {
-            "PARTNERED": _("Partnered"),
-            "VERIFIED": _("Verified"),
-            "DISCOVERABLE": _("Server Discovery"),
-            "FEATURABLE": _("Featurable"),
-            "COMMUNITY": _("Community"),
-            "PUBLIC_DISABLED": _("Public disabled"),
-            "INVITE_SPLASH": _("Splash Invite"),
-            "VIP_REGIONS": _("VIP Voice Servers"),
-            "VANITY_URL": _("Vanity URL"),
-            "MORE_EMOJI": _("More Emojis"),
-            "COMMERCE": _("Commerce"),
-            "LURKABLE": _("Lurkable"),
-            "NEWS": _("News Channels"),
             "ANIMATED_ICON": _("Animated Icon"),
             "BANNER": _("Banner Image"),
+            "COMMERCE": _("Commerce"),
+            "COMMUNITY": _("Community"),
+            "DISCOVERABLE": _("Server Discovery"),
+            "FEATURABLE": _("Featurable"),
+            "INVITE_SPLASH": _("Splash Invite"),
             "MEMBER_LIST_DISABLED": _("Member list disabled"),
+            "MEMBER_VERIFICATION_GATE_ENABLED": _("Membership Screening enabled"),
+            "MORE_EMOJI": _("More Emojis"),
+            "NEWS": _("News Channels"),
+            "PARTNERED": _("Partnered"),
+            "PREVIEW_ENABLED": _("Preview enabled"),
+            "PUBLIC_DISABLED": _("Public disabled"),
+            "VANITY_URL": _("Vanity URL"),
+            "VERIFIED": _("Verified"),
+            "VIP_REGIONS": _("VIP Voice Servers"),
+            "WELCOME_SCREEN_ENABLED": _("Welcome Screen enabled"),
         }
         guild_features_list = [
             f"✅ {name}" for feature, name in features.items() if feature in guild.features
@@ -286,13 +288,14 @@ class ServerStats(commands.Cog):
                 voice=bold(humanize_number(voice_channels)),
             ),
         )
+        owner = guild.owner if guild.owner else await self.bot.get_or_fetch_user(guild.owner_id)
         em.add_field(
             name=_("Utility:"),
             value=_(
                 "Owner: {owner_mention}\n{owner}\nRegion: {region}\nVerif. level: {verif}\nServer ID: {id}{shard}"
             ).format(
-                owner_mention=bold(str(guild.owner.mention)),
-                owner=bold(str(guild.owner)),
+                owner_mention=bold(str(owner.mention)),
+                owner=bold(str(owner)),
                 region=f"**{vc_regions.get(str(guild.region)) or str(guild.region)}**",
                 verif=bold(verif[str(guild.verification_level)]),
                 id=bold(str(guild.id)),
@@ -1246,8 +1249,9 @@ class ServerStats(commands.Cog):
         if not ctx.guild and not await ctx.bot.is_owner(ctx.author):
             return await ctx.send(_("This command is not available in DM."))
         guilds = [ctx.guild]
-        page = ctx.bot.guilds.index(ctx.guild)
+        page = 0
         if await ctx.bot.is_owner(ctx.author):
+            page = ctx.bot.guilds.index(ctx.guild)
             guilds = ctx.bot.guilds
             if guild:
                 page = ctx.bot.guilds.index(guild)
