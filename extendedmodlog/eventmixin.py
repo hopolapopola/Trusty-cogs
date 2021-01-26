@@ -1940,26 +1940,44 @@ class EventMixin:
                         )
                         worth_sending = True
                     check_after = time + datetime.timedelta(minutes=-5)
+                    newest_log_date = None
                     if channel.permissions_for(guild.me).view_audit_log:
                         action = discord.AuditLogAction.member_role_update
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                            if log.created_at > check_after:
-                                if log.target.id == before.id:
+                            if newest_log_date == None:
+                                if log.target.id == role.id:
                                     perp = log.user
+                                    newest_log_date = log.created_at
                                     if log.reason:
                                         reason = log.reason
-                                    break
+                            else:
+                                if log.created_at > newest_log_date:
+                                    if log.target.id == role.id:
+                                        perp = log.user
+                                        newest_log_date = log.created_at
+                                        if log.reason:
+                                            reason = log.reason
+
                 else:
                     if channel.permissions_for(guild.me).view_audit_log:
                         action = discord.AuditLogAction.member_update
                         check_after = time + datetime.timedelta(minutes=-5)
+                        newest_log_date = None
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                            if log.created_at > check_after:
-                                if log.target.id == before.id:
+                            if newest_log_date == None:
+                                if log.target.id == role.id:
                                     perp = log.user
+                                    newest_log_date = log.created_at
                                     if log.reason:
                                         reason = log.reason
-                                    break
+                            else:
+                                if log.created_at > newest_log_date:
+                                    if log.target.id == role.id:
+                                        perp = log.user
+                                        newest_log_date = log.created_at
+                                        if log.reason:
+                                            reason = log.reason
+
                     worth_sending = True
                     msg += _("Before ") + f"{name} {before_attr}\n"
                     msg += _("After ") + f"{name} {after_attr}\n"
