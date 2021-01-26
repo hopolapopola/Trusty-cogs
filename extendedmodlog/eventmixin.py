@@ -613,7 +613,8 @@ class EventMixin:
 
         created_on = "{}\n({} days ago)".format(user_created, since_created)
 
-        (possible_link, invite_uses) = await self.get_invite_link(guild)
+        possible_link, invite_uses = await self.get_invite_link(member)
+        
         if embed_links:
             embed = discord.Embed(
                 title=_("Member joined"),
