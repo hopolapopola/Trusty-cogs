@@ -11,7 +11,7 @@ from discord.ext.commands.errors import BadArgument
 from redbot.core import Config, VersionInfo, commands, modlog, version_info
 from redbot.core.bot import Red
 from redbot.core.i18n import Translator, cog_i18n
-from redbot.core.utils.chat_formatting import escape, humanize_list, inline
+from redbot.core.utils.chat_formatting import escape, humanize_list, inline, humanize_timedelta
 
 _ = Translator("ExtendedModLog", __file__)
 logger = logging.getLogger("red.trusty-cogs.ExtendedModLog")
@@ -511,15 +511,28 @@ class EventMixin:
         self.settings[guild.id]["invite_links"] = invites
         return True
 
-    async def get_invite_link(self, guild: discord.Guild) -> Tuple[str, int]:
+    async def get_invite_link(self, member: discord.Member) -> str:
+        guild = member.guild
         manage_guild = guild.me.guild_permissions.manage_guild
         # invites = await self.config.guild(guild).invite_links()
         invites = self.settings[guild.id]["invite_links"]
         possible_link = ""
         invite_uses = 0
         check_logs = manage_guild and guild.me.guild_permissions.view_audit_log
+        if member.bot:
+            if check_logs:
+                action = discord.AuditLogAction.bot_add
+                async for log in guild.audit_logs(action=action):
+                    if log.target.id == member.id:
+                        possible_link = _("Added by: {inviter}").format(inviter=str(log.user))
+                        break
+            return possible_link
         if manage_guild and "VANITY_URL" in guild.features:
-            possible_link = str(await guild.vanity_invite())
+            try:
+                possible_link = str(await guild.vanity_invite())
+            except (discord.errors.NotFound, discord.errors.HTTPException):
+                pass
+
         if invites and manage_guild:
             guild_invites = await guild.invites()
             for invite in guild_invites:
@@ -640,10 +653,20 @@ class EventMixin:
             await channel.send(msg)
 
     @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
+        """
+        This is only used to track that the user was banned and not kicked/removed
+        """
+        if guild.id not in self._ban_cache:
+            self._ban_cache[guild.id] = [member.id]
+        else:
+            self._ban_cache[guild.id].append(member.id)
+
+    @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         guild = member.guild
         await asyncio.sleep(5)
-        if guild in self._ban_cache and member in self._ban_cache[guild]:
+        if guild.id in self._ban_cache and member.id in self._ban_cache[guild.id]:
             # was a ban so we can leave early
             return
         if guild.id not in self.settings:
@@ -2117,6 +2140,8 @@ class EventMixin:
             "inviter": _("Inviter:"),
             "channel": _("Channel:"),
             "max_uses": _("Max Uses:"),
+            "max_age": _("Max Age:"),
+            "temporary": _("Temporary:"),
         }
         try:
             invite_time = invite.created_at.strftime("%H:%M:%S")
@@ -2140,6 +2165,8 @@ class EventMixin:
         for attr, name in invite_attrs.items():
             before_attr = getattr(invite, attr)
             if before_attr:
+                if attr == "max_age":
+                    before_attr = humanize_timedelta(seconds=before_attr)
                 worth_updating = True
                 msg += f"{name} {before_attr}\n"
                 if attr == "inviter":
@@ -2188,6 +2215,8 @@ class EventMixin:
             "channel": _("Channel: "),
             "max_uses": _("Max Uses: "),
             "uses": _("Used: "),
+            "max_age": _("Max Age:"),
+            "temporary": _("Temporary:"),
         }
         try:
             invite_time = invite.created_at.strftime("%H:%M:%S")
@@ -2221,6 +2250,8 @@ class EventMixin:
         for attr, name in invite_attrs.items():
             before_attr = getattr(invite, attr)
             if before_attr:
+                if attr == "max_age":
+                    before_attr = humanize_timedelta(seconds=before_attr)
                 worth_updating = True
                 msg += f"{name} {before_attr}\n"
                 if attr == "inviter" or attr == "channel":
