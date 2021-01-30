@@ -1947,6 +1947,7 @@ class EventMixin:
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                             if newest_log_date == None:
                                 if log.target.id == before.id:
+                                    reason = None
                                     perp = log.user
                                     newest_log_date = log.created_at
                                     if log.reason:
@@ -1954,6 +1955,7 @@ class EventMixin:
                             else:
                                 if log.created_at > newest_log_date:
                                     if log.target.id == before.id:
+                                        reason = None
                                         perp = log.user
                                         newest_log_date = log.created_at
                                         if log.reason:
@@ -1967,6 +1969,7 @@ class EventMixin:
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                             if newest_log_date == None:
                                 if log.target.id == before.id:
+                                    reason = None
                                     perp = log.user
                                     newest_log_date = log.created_at
                                     if log.reason:
@@ -1974,6 +1977,7 @@ class EventMixin:
                             else:
                                 if log.created_at > newest_log_date:
                                     if log.target.id == before.id:
+                                        reason = None
                                         perp = log.user
                                         newest_log_date = log.created_at
                                         if log.reason:
