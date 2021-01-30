@@ -1805,7 +1805,7 @@ class EventMixin:
         perp = None
         reason = None
         action = None
-        check_after = time + datetime.timedelta(minutes=-1)
+        check_after = time + datetime.timedelta(seconds=-10)
         if channel.permissions_for(guild.me).view_audit_log and change_type:
             async for log in guild.audit_logs(limit=1, action=None, after=check_after):
                 if log.created_at > check_after:
@@ -1946,14 +1946,16 @@ class EventMixin:
                         action = discord.AuditLogAction.member_role_update
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                             if newest_log_date == None:
-                                if log.target.id == role.id:
+                                if log.target.id == before.id:
+                                    reason = None
                                     perp = log.user
                                     newest_log_date = log.created_at
                                     if log.reason:
                                         reason = log.reason
                             else:
                                 if log.created_at > newest_log_date:
-                                    if log.target.id == role.id:
+                                    if log.target.id == before.id:
+                                        reason = None
                                         perp = log.user
                                         newest_log_date = log.created_at
                                         if log.reason:
@@ -1966,14 +1968,16 @@ class EventMixin:
                         newest_log_date = None
                         async for log in guild.audit_logs(limit=5, action=action, after=check_after):
                             if newest_log_date == None:
-                                if log.target.id == role.id:
+                                if log.target.id == before.id:
+                                    reason = None
                                     perp = log.user
                                     newest_log_date = log.created_at
                                     if log.reason:
                                         reason = log.reason
                             else:
                                 if log.created_at > newest_log_date:
-                                    if log.target.id == role.id:
+                                    if log.target.id == before.id:
+                                        reason = None
                                         perp = log.user
                                         newest_log_date = log.created_at
                                         if log.reason:
