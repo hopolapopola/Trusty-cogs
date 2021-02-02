@@ -993,15 +993,35 @@ class EventMixin:
         reason = None
         check_after = time + datetime.timedelta(minutes=-5)
         worth_updating = False
+        # if channel.permissions_for(guild.me).view_audit_log:
+        #     action = discord.AuditLogAction.channel_update
+        #     async for log in guild.audit_logs(limit=5, action=action, after=check_after):
+        #         if log.created_at > check_after:
+        #             if log.target.id == before.id:
+        #                 perp = log.user
+        #                 if log.reason:
+        #                     reason = log.reason
+        #                 break
+        newest_log_date = None
         if channel.permissions_for(guild.me).view_audit_log:
-            action = discord.AuditLogAction.channel_update
+            action = discord.AuditLogAction.member_role_update
             async for log in guild.audit_logs(limit=5, action=action, after=check_after):
-                if log.created_at > check_after:
+                if newest_log_date == None:
                     if log.target.id == before.id:
+                        reason = None
                         perp = log.user
+                        newest_log_date = log.created_at
                         if log.reason:
                             reason = log.reason
-                        break
+                else:
+                    if log.created_at > newest_log_date:
+                        if log.target.id == before.id:
+                            reason = None
+                            perp = log.user
+                            newest_log_date = log.created_at
+                            if log.reason:
+                                reason = log.reason
+        # Copied code above
         if type(before) == discord.TextChannel:
             text_updates = {
                 "name": _("Name:"),
